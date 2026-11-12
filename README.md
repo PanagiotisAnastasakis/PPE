@@ -79,16 +79,14 @@ Create an isolated Python environment and install the declared requirements:
 
 The current requirements.txt specifies:
 
-- jax<=0.4.28
-- jaxlib<=0.4.28
-- numpy<2.0.0
+- jax
+- jaxlib
+- numpy
 - pandas
 - scipy
 - matplotlib
-
-**Additional dependencies:** Bayesian optimization imports Ax, but ax-platform is commented out in requirements.txt. Install it separately if you plan to use Bayesian_Optimization:
-
-    python -m pip install ax-platform
+- ax-platform
+- pymc
 
 The Bayesian optimization interface also expects a PyMC-style model callable returning an object with a prior_predictive group. Specifically, the implementation reads prior_predictive["Y_obs"][0]. Install and configure a compatible PyMC stack for your model separately. PyMC is not declared in the current requirements file, and the repository does not provide a pinned full environment specification.
 
