@@ -20,7 +20,7 @@ def logistic_model_1(lambd, covs=None, n_samples=1500):
         Y_obs = pm.Bernoulli("Y_obs", p=p, observed=np.ones(covs.shape[0]))
 
     with logistic_regression_model:
-        idata = pm.sample_prior_predictive(samples=n_samples)
+        idata = pm.sample_prior_predictive(draws=n_samples)
 
     return idata
 
@@ -44,7 +44,7 @@ def logistic_model_2(lambd, covs=None, n_samples=1500):
         Y_obs = pm.Bernoulli("Y_obs", p=p, observed=np.ones(covs.shape[0]))
 
     with logistic_regression_model:
-        idata = pm.sample_prior_predictive(samples=n_samples)
+        idata = pm.sample_prior_predictive(draws=n_samples)
 
     return idata
 
@@ -70,6 +70,6 @@ def logistic_model_3(lambd, covs=None, n_samples=1500):
         Y_obs = pm.Bernoulli("Y_obs", p=p, observed=np.ones(covs.shape[0]))
 
     with logistic_regression_model:
-        idata = pm.sample_prior_predictive(samples=n_samples)
+        idata = pm.sample_prior_predictive(draws=n_samples)
 
     return idata
