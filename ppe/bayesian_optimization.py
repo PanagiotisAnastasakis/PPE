@@ -1,5 +1,5 @@
 import numpy as np
-from ax import optimize
+from ax.service.managed_loop import optimize
 import scipy.stats as sps
 
 from ppe.dirichlet import Dirichlet
