@@ -15,7 +15,7 @@ def gaussian_model_1(lambd, covs=None, n_samples=1500):
         )  ## the observed value does not matter as we only need the prior predictive distribution
 
     with regression_model:
-        idata = pm.sample_prior_predictive(samples=n_samples)
+        idata = pm.sample_prior_predictive(draws=n_samples)
 
     return idata
 
@@ -37,6 +37,6 @@ def gaussian_model_2(lambd, covs=None, n_samples=1500):
         )  ## the observed value does not matter as we only need the prior predictive distribution
 
     with regression_model:
-        idata = pm.sample_prior_predictive(samples=n_samples)
+        idata = pm.sample_prior_predictive(draws=n_samples)
 
     return idata
