@@ -20,7 +20,7 @@ def linear_model_1(lambd, covs=None, n_samples=1500):
         )
 
     with regression_model:
-        idata = pm.sample_prior_predictive(samples=n_samples)
+        idata = pm.sample_prior_predictive(draws=n_samples)
 
     return idata
 
@@ -44,7 +44,7 @@ def linear_model_2(lambd, covs=None, n_samples=1500):
         )
 
     with regression_model:
-        idata = pm.sample_prior_predictive(samples=n_samples)
+        idata = pm.sample_prior_predictive(draws=n_samples)
 
     return idata
 
@@ -70,6 +70,6 @@ def linear_model_3(lambd, covs=None, n_samples=1500):
         )
 
     with regression_model:
-        idata = pm.sample_prior_predictive(samples=n_samples)
+        idata = pm.sample_prior_predictive(draws=n_samples)
 
     return idata
