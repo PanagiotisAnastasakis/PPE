@@ -2,25 +2,14 @@
 
 This repository contains a Python implementation of **Probabilistic Predictive Elicitation (PPE)**, following [“Flexible Prior Elicitation via the Prior Predictive Distribution”](https://proceedings.mlr.press/v124/hartmann20a.html) by Hartmann et al. The aim is to calibrate prior-distribution hyperparameters using an expert's probabilistic judgements about a model's target variable.
 
-The code provides three complementary approaches:
+The implementation offers the following functionality:
 
-- **Closed-form prior predictive probabilities:** JAX automatic differentiation and gradient descent.
-- **Simulation-based probabilities:** prior predictive samples from a user-supplied PyMC-style model, optimized using Bayesian optimization with Ax.
-- **Stochastic-gradient experiments:** utilities for estimating derivatives in Bernoulli and continuous-target examples.
+- Flexible target variables: Supports both discrete and continuous target variables. Expert judgements can be specified as probabilities assigned to individual classes or to intervals of the target space, respectively.
+- Multiple covariate settings: Allows expert judgements to be incorporated across multiple target instances, each potentially associated with different covariate values and target-space partitions.
+- Gradient-based optimization: Implements gradient-based optimization for models where prior predictive probabilities can be evaluated in closed form. JAX is used for automatic differentiation to calculate the gradients of the objective function with respect to the model hyperparameters.
+- Bayesian optimization: Provides an alternative for models whose prior predictive distributions are not available in closed form. Prior predictive probabilities are approximated from samples generated from the model with PyMC and Bayesian optimization is employed to estimate the hyperparameters using Ax.
 
-This is research code with implementation modules, tests, and simulation notebooks. The descriptions below reflect the code currently in the repository; experimental routines should not be assumed to be general-purpose optimizers.
-
-## 1. Method overview
-
-Suppose an expert provides probabilities for a collection of events or intervals describing a target variable Y. For covariate setting j, let qⱼ be the expert's probability vector and pⱼ(λ) the corresponding probabilities implied by the model's prior predictive distribution, whose hyperparameters are λ.
-
-PPE compares these vectors using a Dirichlet log-likelihood. The implementation evaluates the likelihood for each covariate setting and sums the results over J settings. The hyperparameters are selected to make the prior predictive probabilities compatible with the expert's judgements.
-
-The Dirichlet concentration parameter α controls the concentration of the likelihood. It can be fixed by the user or, in supported methods, estimated from the model and expert probability vectors using the repository's alpha_mle_ calculation.
-
-For a **discrete** target, events are classes. For a **continuous** target, events are intervals (partitions) of the target range. Multiple covariate settings are represented by separate probability vectors, one for each setting.
-
-## 2. Repository structure
+## Repository Structure
 
     .
     ├── ppe/
@@ -48,22 +37,29 @@ For a **discrete** target, events are classes. For a **continuous** target, even
     ├── requirements.txt
     └── PPE_final_report.pdf
 
-### Main modules
 
-| Module | Purpose |
-|---|---|
-| ppe/dirichlet.py | Dirichlet log-likelihood, probability checks, gradient with respect to model probabilities, and alpha_mle_. |
-| ppe/computing_probabilities.py | PPEProbabilities: convert prior predictive samples into discrete-class or continuous-interval probabilities; includes an expert-input parser. |
-| ppe/gradient_optimization.py | optimize_ppe: closed-form probability evaluation, JAX derivatives, gradient descent, and an α estimate. |
-| ppe/bayesian_optimization.py | Bayesian_Optimization: sample-based probabilities, negative Dirichlet log-likelihood, optional hyperpriors, and Ax optimization. |
-| ppe/stochastic_optimization.py | JAX utilities for stochastic derivative estimates in Bernoulli and continuous examples. |
-| ppe/optimization_loop.py | Iterative update loop used by the stochastic-gradient experiments. |
-| BO_simulations/ | Model definitions and helpers for simulation, plotting, and Wasserstein-distance calculations. |
-| tests/ | Notebook-based checks and runnable numerical examples. |
+## Method overview
 
-The package initializer exports Dirichlet and PPEProbabilities. Import the optimization class and other functions from their defining modules.
+The prior distribution plays a crucial role in Bayesian inference. It encapsulates information about an unknown parameter $\boldsymbol{\theta}$, which is then integrated with the probability distribution of new data $Y$, leading to the posterior distribution. Specifying a suitable prior distribution can be challenging, especially when there is lack of prior information about the parameters of the model. One way to obtain informed priors is by deriving information about the parameters from an expert, which can then be turned into a prior distribution. This approach, however, has the downside that the expert may be unfamiliar with statistical measures used in probabilistic distributions, thus the elicitation process can lead to unreasonable priors.
 
-## 3. Installation
+Motivated by this limitation, Probabilistic Predictive Elicitation (PPE) was introduced as an alternative methodology for capturing expert knowledge and incorporating it into prior distributions. The main idea is that instead of asking questions about the parameters, the modeller can extract probabilistic judgements from an expert about the target, which can then be used to obtain the hyperparameters of the prior distribution.
+
+Suppose an expert provides probabilities describing a target variable Y. For a **discrete** target, the expert's input is probabilities about each class. For a **continuous** target, the probabilities are for intervals (partitions) of the target range. Let $\boldsymbol{q}$ be the expert's probability vector and $p(\boldsymbol{\lambda})$ the corresponding probabilities implied by the model's prior predictive distribution, whose hyperparameters are $\boldsymbol{\lambda}$. PPE compares these vectors using a Dirichlet log-likelihood, which is maximized with respect to the hyperparameters, making the prior predictive probabilities compatible with the expert's judgements.
+
+In most cases, the expert will provide data about multiple instances of the target $Y_1, ..., Y_J$, usually under the presence of covariate sets $\boldsymbol{X}_1, ..., \boldsymbol{X}_J$. Each covariate setting is represented by separate probability vectors. The Dirichlet likelihood is then summed over every setting and the optimal hyperparameters are determined by maximizing this joint log-likelihood.
+
+
+## Optimization
+
+Optimizing the Dirichlet log-likelihood is relatively straightforward when the prior predictive distribution is available in closed form. Then, the chain rule can be used to derive the gradient of the objective function with respect to $\boldsymbol{\lambda}$, allowing gradient-based optimization methods to be employed. However, in most practical applications, the prior predictive distribution is not available in closed form, making the analytical computation of the gradient difficult or infeasible. In such cases, gradient-based optimization may still be possible through stochastic gradient estimation. Alternatively, general-purpose global optimization methods can be employed. In this work, Bayesian optimization was chosen as it is well suited to optimizing computationally expensive black-box objective functions. Furthermore, its probabilistic formulation is conceptually aligned with the Bayesian framework underlying PPE.
+
+
+## Implementation
+
+This repository contains a Python framework for PPE that accommodates both discrete and continuous target variables and allows expert judgements to be incorporated across multiple covariate settings. Two complementary optimization approaches are implemented. First, gradient-based optimization is used when prior predictive probabilities can be evaluated in closed form, with JAX providing automatic differentiation to compute the required gradients. Second, Bayesian optimization is employed as a simulation-based alternative when the prior predictive distribution is not available in closed form. In this case, prior predictive probabilities are approximated through sampling from the model and the resulting objective function is optimized using the Ax framework.
+
+
+## Installation
 
 Create an isolated Python environment and install the declared requirements:
 
@@ -77,171 +73,209 @@ Create an isolated Python environment and install the declared requirements:
     python -m pip install --upgrade pip
     python -m pip install -r requirements.txt
 
-The current requirements.txt specifies:
 
-- jax
-- jaxlib
-- numpy
-- pandas
-- scipy
-- matplotlib
-- ax-platform
-- pymc
+## How to Run
 
-The Bayesian optimization interface also expects a PyMC-style model callable returning an object with a prior_predictive group. Specifically, the implementation reads prior_predictive["Y_obs"][0]. Install and configure a compatible PyMC stack for your model separately. PyMC is not declared in the current requirements file, and the repository does not provide a pinned full environment specification.
+To run PPE, the user needs to provide the following inputs:
 
-## 4. Core API
+1. The covariates $\boldsymbol{X}_1, ..., \boldsymbol{X}_J$, if any, for each instance $Y_1, ..., Y_J$ of the target.
+2. The expert's probabilistic judgements $\boldsymbol{q}_1, ..., \boldsymbol{q}_J$ for each observation.
+3. The partition of the target space for which each $\boldsymbol{q}_j$ is given. Different observations may correspond to different partitions.
+4. Either the prior predictive distribution in closed form or a probabilistic model from which prior predictive samples can be generated.
 
-### 4.1 Dirichlet likelihood
+### 1. The Prior Predictive Distribution is Available in Closed-Form
 
-Dirichlet is implemented in ppe/dirichlet.py:
+First, we consider models for which the prior predictive distribution can be obtained analytically. In this case, the user must define a function that evaluates the prior predictive probabilities for the specified target-space partitions. The function should accept the following three arguments:
 
-    from ppe.dirichlet import Dirichlet, dirichlet_log_likelihood, alpha_mle_
+`partition`: An array specifying the target-space partition for one target instance $Y_j$.
 
-    likelihood = Dirichlet(alpha=1.0, J=1)
+`lambda`: An array containing the model hyperparameters (\boldsymbol{\lambda}) to be estimated.
 
-- alpha: fixed concentration parameter, or None to request the MLE approximation in methods that support it.
-- J: number of covariate settings represented by the probability lists.
+`X`: An array containing the covariate values associated with the given target instance. If the model does not include covariates, this argument can be omitted.
 
-Important methods include:
+The function should return the prior predictive probabilities corresponding to the specified partitions, given the hyperparameter values and covariate settings.
 
-- alpha_mle(total_model_probs, total_expert_probs): estimate the concentration parameter from all supplied settings.
-- llik(total_model_probs, total_expert_probs, index=None): evaluate one setting when an index is supplied, or evaluate the supplied vectors directly.
-- sum_llik(total_model_probs, total_expert_probs): sum the log-likelihood over all J settings.
-- grad_dirichlet_p(..., index=...): compute the negative gradient with respect to one model probability vector using JAX.
-- probabilities_check(...): check that each probability vector sums to one.
+```
+def prior_predictive_distribution(
+    partition,
+    lambda,
+    X):
+  
+  # Extract model hyperparameters
+  # Use the covariate values, if applicable
+  # Calculate prior predictive probabilities for each partition
+  
+  return(probabilities)
 
-Probability inputs are lists of vectors, with one vector per covariate setting. The likelihood methods check normalization.
+```
 
-### 4.2 Probabilities from prior predictive samples
+The user must then initialize the `optimize_ppe` class, implemented in `ppe/gradient_optimization.py`:
 
-PPEProbabilities is implemented in ppe/computing_probabilities.py:
+```
+from ppe.gradient_optimization import optimize_ppe
 
-    from ppe.computing_probabilities import PPEProbabilities
+opt_class = optimize_ppe(
+    alpha,
+    J,
+    ppd
+)
+```
 
-    probability_tools = PPEProbabilities(target_type="discrete", path=False)
-    model_probs = probability_tools.ppd_probs(
-        samples=prior_predictive_samples,
-        partitions=[0, 1, 2],
-    )
+Here, `alpha` determines the concentration of the Dirichlet likelihood, which can be interpreted as a quantification of uncertainty of how well we can represent the expert’s probabilistic judgements with the prior predictive probability. It can be either set to a fixed value, or assigned to `None`, in which case it is treated as an additional hyperparameter. `J` specifies the number of target instances for which expert judgements are available and `ppd` links the optimization procedure to the user-defined `prior_predictive_distribution` function for evaluating prior predictive probabilities.
 
-Set target_type to "discrete" or "continuous".
+After initializing the `optimize_ppe` class, the user can estimate the model hyperparameters by calling its `gradient_descent` method:
 
-- For discrete targets, partitions contains the class labels. Probabilities are estimated by empirical class frequencies.
-- For continuous targets, partitions is a list of interval arrays, one per covariate setting. Probabilities are estimated from sample frequencies within each interval.
+```
+lam_new, lik_progression, grad_progression = opt_class.gradient_descent(
+    partitions,
+    expert_probs,
+    lam_0,
+    iters,
+    step_size,
+    tol,
+    total_covariates
+)
+```
 
-For multiple covariate settings, the sample matrix is expected to have one column per setting. The continuous case expects one interval-partition array per setting.
+The method takes the following inputs:
 
-The class also contains get_expert_data for parsing expert judgements from arrays or CSV paths. Its source comments explicitly mark this parser as **not recommended**, because it assumes a specific input-file format. For a new workflow, prepare and validate partition and expert-probability arrays explicitly.
+`partitions`: A list of arrays of partitions corresponding to each target instance $Y_j$.
+`expert_probs`: A list of arrays of expert-provided probabilities for each target instance $Y_j$ and corresponding partition.
+`lam_0`: An array of initial values for the hyperparameters.
+`iters`: The maximum number of gradient descent iterations.
+`step_size`: The learning rate, which controls the magnitude of the updates to the hyperparameters at each iteration.
+`tol`: The convergence tolerance used as a stopping criterion.
+`total_covariates`: A list of arrays of covariate values associated with the different target instances.
 
-### 4.3 Closed-form gradient optimization
+The method returns three objects:
 
-optimize_ppe lives in ppe/gradient_optimization.py:
+`lam_new`: An array of the estimated hyperparameter vector obtained through optimization.
 
-    from ppe.gradient_optimization import optimize_ppe
+`lik_progression`: An array capturing the value of the objective function over the optimization iterations.
 
-    optimizer = optimize_ppe(
-        alpha=1.0,
-        J=1,
-        ppd=prior_predictive_probability,
-    )
+`grad_progression`: An array of the gradient values over optimization iterations.
 
-The supplied ppd callable returns the prior predictive probability of a single partition. It is called as either:
+The likelihood and gradient values recorded across iterations can be used to monitor the convergence of the optimization procedure.
 
-    ppd(partition, lam)
-    # With covariates:
-    ppd(partition, lam, covariates)
+The estimated hyperparameters, stored in `lam_new`, represent the values that optimize the agreement between the model-implied prior predictive probabilities and the expert-provided judgements, according to the specified Dirichlet likelihood. The corresponding prior predictive probabilities can subsequently be obtained using the user-defined `prior_predictive_distribution` function.
 
-Here, lam is the hyperparameter vector. The class provides ppd_function, grad_ppd_lambda, gradient calculations for the Dirichlet objective, gradient_descent, and get_alpha.
+If the Dirichlet concentration parameter `alpha` was not specified during the initialization of `optimize_ppe`, its optimized value can be returned by calling the `get_alpha` method:
 
-gradient_descent accepts partitions and expert probabilities for all settings, an initial hyperparameter value, an iteration limit, a step size, and a tolerance. Covariates can be passed as a list with one entry per setting; if omitted, the implementation uses None for each setting. By default, the method returns the optimized value together with objective and gradient-norm progression arrays.
+```
+opt_class.get_alpha(
+    partitions,
+    lam_new,
+    expert_probs,
+    total_covariates
+)
+```
 
-Use this route when prior predictive probabilities are available in a differentiable closed form. The probability function must be compatible with JAX tracing and automatic differentiation.
+Comprehensive examples of PPE in this scenario can be found in `tests/Tests_optimization.ipynb`.
 
-### 4.4 Bayesian optimization using prior predictive samples
 
-Bayesian_Optimization is defined in ppe/bayesian_optimization.py:
+### 2. The Prior Predictive Distribution is Not Available in Closed-Form
 
-    from ppe.bayesian_optimization import Bayesian_Optimization
+In most practical applications, the prior predictive distribution cannot be derived analytically. PPE can still be applied by approximating the prior predictive probabilities using samples generated from the model's prior predictive distribution. The implementation provides the `Bayesian_Optimization` class, defined in `ppe/bayesian_optimization.py`, which uses Bayesian optimization to estimate the model hyperparameters.
 
-    bo = Bayesian_Optimization(
-        pymc_sampling_func=model_sampler,
-        J=1,
-        alpha=1.0,
-        target_type="continuous",
-        target_samples=500,
-    )
+Unlike the previous approach, the user does not need to define a function that directly evaluates the prior predictive probabilities. Instead, they must provide a probabilistic model as a function, from which prior predictive samples can be generated. The function is assumed to be implemented using PyMC and accepts two arguments:
 
-pymc_sampling_func is supplied by the user. The class calls it with the hyperparameter dictionary and sample count, then reads samples from idata.prior_predictive["Y_obs"][0]. Your callable must therefore accept the arguments in the form used by the class and return an inference-data-like object containing that group and variable.
+`lam`: A dictionary containing the model hyperparameters, with parameter names as keys and their corresponding values.
+`n_samples`: The number of prior predictive samples to generate.
 
-A typical workflow is:
+A simple example is a model where $Y \sim \mathcal{N}(\theta, \sigma)$, with $\theta \sim \mathcal{N}(\mu_1, \sigma_1)$. The hyperparameter vector is $\[\sigma, \mu_1, \sigma_1\]$, according to which we define the probabilistic model:
 
-1. Define target partitions and provide expert probabilities in the same order.
-2. Call get_model_probs(lam, partitions, num_samples=None) to estimate model probabilities from prior predictive samples.
-3. Call optimize_hyperparams(...) to minimize the negative Dirichlet log-likelihood, plus any supplied hyperprior penalty.
-4. Optionally call eval_function(lam, partitions, expert_probs) to calculate the MLE estimate of α for a parameter setting.
+```
+import pymc as pm
 
-optimize_hyperparams expects parallel lists: param_names, param_types, param_bounds, param_expected_vals, and param_weights. The code supports Ax parameter types such as "range"; range parameters are passed to Ax with lower and upper bounds. Set n_trials to control the optimization budget. Set return_value=True to return the best parameter dictionary and objective value.
+def gaussian_model(lam, n_samples):
 
-If alpha=None, the Bayesian-optimization objective expects an "alpha" entry in the parameter dictionary. The simulation helper adds this parameter and a search interval automatically. When alpha is fixed, leave it out of the optimized parameter list.
+    gaussian_model = pm.Model()
 
-### 4.5 Hyperpriors
+    with gaussian_model:
 
-The Bayesian-optimization class includes hyperprior_llik. If an expected value is supplied for a hyperparameter, the objective includes a truncated-normal hyperprior penalty. param_expected_vals contains either a value or None for each parameter, and param_weights supplies the corresponding confidence weights. Parameters without an expected value do not contribute a hyperprior term.
+        theta = pm.Normal("theta", mu=lam["mu_1"], sigma=lam["sigma_1"])
 
-## 5. Stochastic-gradient utilities
+        Y_obs = pm.Normal("Y_obs", mu=theta, sigma=lam["sigma"], observed=1.)
 
-ppe/stochastic_optimization.py contains two experimental utilities:
+    with gaussian_model:
 
-- set_derivative_bernoulli_fn(...) returns two functions: one for the derivative of the Dirichlet likelihood with respect to probability vectors, and one for a stochastic derivative of a Bernoulli predictive probability with respect to model hyperparameters.
-- set_derivative_continous_fn(...) (spelled this way in the current source) builds a JAX function that estimates continuous interval probabilities from samples and differentiates the negative Dirichlet log-likelihood.
+        idata = pm.sample_prior_predictive(draws = n_samples)
 
-The companion optimization_loop in ppe/optimization_loop.py applies gradient updates to the parameter structure used in the experiments and prints progress every ten iterations.
+    return idata
+```
 
-These utilities are **experimental and model-specific**, not general-purpose replacements for optimize_ppe or Bayesian_Optimization. The Bernoulli helper assumes compatible sampler, pivot, and PMF functions. The continuous helper expects a sampler, CDF function, pivot function, partitions, and expert probabilities. Review the example scripts before adapting either utility to a new model. The source also contains TODO comments for unfinished generalization and some alpha=None cases.
 
-## 6. Examples, simulations, and tests
+The user then initializes the `Bayesian_Optimization` class, implemented in `ppe/bayesian_optimization.py`:
 
-The repository's Python examples and notebooks are the best starting points for expected inputs:
+```
+from ppe.bayesian_optimization import Bayesian_Optimization
 
-- tests/optimization_simple_gaussian.py: simple Gaussian prior/likelihood example with three target intervals and gradient-based optimization.
-- tests/stochastic_gradient_bernoulli.py: compares a stochastic Bernoulli-gradient estimate with an automatic-differentiation reference.
-- tests/stochastic_gradient_continous.py: checks stochastic continuous interval probabilities and gradients against a closed-form Gaussian calculation.
-- tests/optimization_normflow_prior.py: an additional optimization experiment involving a normalizing-flow prior.
-- tests/Tests_dirichlet_probabilities.ipynb, tests/Tests_optimization.ipynb, and tests/Tests_Bayesian_Optimization.ipynb: notebook-based tests and demonstrations.
-- BO_simulations/simulations.ipynb: simulation experiments using the model and plotting helpers in BO_simulations/.
+BO = Bayesian_Optimization(
+    pymc_sampling_func,
+    J,
+    alpha,
+    target_type,
+    target_samples
+)
+```
 
-Run standalone examples from the repository root:
+The initialization requires the following arguments:
 
-    python tests/optimization_simple_gaussian.py
-    python tests/stochastic_gradient_bernoulli.py
-    python tests/stochastic_gradient_continous.py
+`pymc_sampling_func`: The user-defined PyMC function that generates prior predictive samples.
+`J`: The number of target instances for which expert judgements are provided.
+`alpha`: The Dirichlet concentration parameter. It can be fixed to a specified value or set to `None` if it is to be estimated as part of the optimization.
+`target_type`: Specifies whether the target variable is `"discrete"` or `"continuous"`.
+`target_samples`: The number of prior predictive samples used to approximate the prior predictive probabilities.
 
-Some examples require additional packages or a working Jupyter environment beyond the base requirements. These scripts are research examples, not a packaged command-line interface. Plotting in the simple Gaussian example is disabled by default.
+The user can run the optimization procedure by calling `optimize_hyperparams`:
 
-The simulation helpers in BO_simulations/functions.py include:
+```
+best_params = BO.optimize_hyperparams(
+    param_names,
+    param_types,
+    param_bounds,
+    param_expected_vals,
+    param_weights,
+    partitions,
+    expert_probs,
+    n_trials
+)
+```
 
-- make_partition: construct continuous partitions with outer intervals and a chosen inner range.
-- ppe_simulation: simulate expert probabilities from known hyperparameters and run Bayesian optimization.
-- plot_histograms and plot_densities: compare prior predictive samples under reference and elicited parameter values.
-- wasserstein_metric: compute a Wasserstein distance for single-setting or multi-setting cases.
+The method takes the following arguments:
 
-ppe_simulation uses 20,000 prior predictive samples to generate simulated expert probabilities and defaults to 75 Bayesian-optimization trials. These are helper defaults, not universal recommendations; adjust sample counts and trial budgets to your model's computational cost and precision needs.
+`param_names`: List of names of the model hyperparameters and, if applicable, the Dirichlet concentration parameter `alpha` to be optimized.
+`param_types`: List describing the type of search for each hyperparameter. It is either `"range"` if the search space is a pre-defined range, or `"choice"` if the search space is constrained to specific values.
+`param_bounds`: List of arrays for either lower and upper bounds defining the search space for each parameter (if `param_types == "range"`), or specific values (if `param_types == "search"`).
+`param_expected_vals`: A list of the expert's estimates for the hyperparameters. It also accepts `None` if no such input can be given.
+`param_weights`: List of weights associated with the expected parameter values. The weights must range from 0 to 1.
+`partitions`: A list of arrays of partitions corresponding to each target instance $Y_j$. If the target is discrete, then it is an array of all possible values.
+`expert_probs`: A list of arrays of expert-provided probabilities for each target instance $Y_j$ and corresponding partition.
+`n_trials`: The number of Bayesian optimization trials to perform.
 
-## 7. Practical considerations and limitations
+The arguments `param_expected_vals` and `param_weights` correspond to an additional functionality of this implementation that supports the use of hyperpriors for the hyperparameters. Details can be found in the report.
 
-- **Sampling noise:** sample-based probabilities depend on the number of prior predictive draws. Increase target_samples or pass a larger num_samples to get_model_probs when Monte Carlo error matters.
-- **Partition design:** continuous intervals should cover the plausible target range and reflect questions an expert can answer. The sample-probability routine expands the first or last interval to include observed extremes if needed; consider this when designing partitions.
-- **Normalization and ordering:** expert and model probability vectors must refer to the same classes or intervals in the same order and should sum to one.
-- **Multiple settings:** keep the number and ordering of covariate settings consistent across samples, partitions, and expert judgements.
-- **Optimization bounds and initialization:** gradient descent depends on its initial value and step size; Bayesian optimization depends on parameter bounds and trial budget. Inspect fitted values and predictive probabilities rather than relying on the optimizer output alone.
-- **Research-code status:** there is no packaging metadata or pinned full environment file. Some dependencies are optional or used only by notebooks and simulation helpers. The expert CSV parser is marked as not recommended, and stochastic-gradient utilities include unfinished TODOs.
-- **Numerical checks:** the Dirichlet expression uses log probabilities. Zero-valued expert probabilities or invalid partitions can cause numerical problems, so validate inputs before optimization.
+During optimization, the prior predictive samples generated by the user-defined PyMC model are used to approximate the probabilities implied by each candidate set of hyperparameters. These probabilities are then compared with the expert judgements through the Dirichlet likelihood. Bayesian optimization uses the resulting objective-function to guide the search towards promising hyperparameter values.
 
-## 8. Reference
+The procedure returns `best_params`, containing the parameter values identified by the optimization procedure.
+
+After the optimized hyperparameters have been obtained, the corresponding prior predictive probabilities can be computed:
+
+```
+BO.get_model_probs(best_params, partitions)
+```
+
+Comprehensive examples of PPE with Bayesian Optimization can be found in `tests/Tests_Bayesian_Optimization.ipynb`.
+
+
+
+## Stochastic Gradients
+
+The use of stochastic gradients was also investigated as a potential alternative for cases where the prior predictive distribution is not available in closed form. In this setting, gradients can be estimated using samples from the prior predictive distribution, potentially allowing gradient-based optimization without requiring an analytical expression for the objective function. However, this approach was not developed into a general optimization procedure within the current implementation. Instead, the repository includes experimental utilities for estimating stochastic gradients in specific examples, namely Bernoulli and continuous-target models. These experiments provide a basis for further investigation into the applicability of stochastic-gradient methods to PPE.
+
+
+## Reference
 
 Hartmann, M., et al. [Flexible Prior Elicitation via the Prior Predictive Distribution](https://proceedings.mlr.press/v124/hartmann20a.html). Proceedings of Machine Learning Research, 2020.
 
 ---
-
-This project is an implementation and set of experiments for probabilistic prior elicitation. It is not currently distributed as a fully packaged Python library with a stable, versioned public API. Check the source modules and example notebooks when adapting the code to a new probabilistic model.
